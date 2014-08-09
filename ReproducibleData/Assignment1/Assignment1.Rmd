@@ -1,0 +1,62 @@
+---
+title: "Reproducible Data Assignment 1"
+output: html_document
+---
+
+The provided data set shows the number of steps taken at 5 minute intervals. The source of the Data is the Coursera course entitled "Reproducible Data", and can be downloaded from the [Assignment 1 Page](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip). First, let's load the data set
+
+```{r, cache=TRUE,echo=TRUE}
+activity<-read.csv('activity.csv',colClasses=c(NA,'Date',NA))
+validData=!is.na(activity$steps)
+
+specify_decimal <- function(x, k) format(round(x, k), nsmall=k)
+```
+
+From this, we can start to look at the data. Let's start by looking at the daily activity level per day
+
+```{r, echo=TRUE}
+steps_per_day<-with(activity,sapply(split(steps[validData],date[validData]),sum))
+hist(steps_per_day,main='Histogram of Steps Per Day',xlab='Steps Per Day')
+mean_spd<-specify_decimal(mean(steps_per_day),0)
+median_spd<-specify_decimal(median(steps_per_day),0)
+```
+
+The mean steps per day is `r mean_spd` and the median steps per day is `r median_spd`. As these are close, we can observe there is minimal skew in the data.
+
+What time of day is the subject the most active? This can be found by looking at each data set within the interval, and plotting it with time.
+
+```{r, echo=TRUE}
+steps_per_interval<-with(activity,sapply(split(steps[validData],interval[validData]),mean))
+plot(steps_per_interval,main='Steps Per Interval',xlab='Steps Per Interval',type='l')
+max_spi_value=max(steps_per_interval)
+max_spi_index=which.max(steps_per_interval)
+```
+
+The maximum steps per day can be found at interval `r max_spi_index`, with a value of `r max_spi_value`.
+
+There is a considerable amount of data missing, which could potentially skew the results. Let's simply replace the missing data with the average steps per day for the interval of the data, and see how the statistics vary.
+
+```{r, echo=TRUE}
+activity_filled<-activity
+activity_filled$steps[!validData]=steps_per_interval[sapply(activity_filled$interval[!validData],toString)]
+
+steps_per_day_filtered<-with(activity_filled,sapply(split(steps,date),sum))
+hist(steps_per_day_filtered,main='Histogram of Steps Per Day',xlab='Steps Per Day')
+mean_spd_filtered<-specify_decimal(mean(steps_per_day_filtered),0)
+median_spd_filtered<-specify_decimal(median(steps_per_day_filtered),0)
+```
+
+The mean steps per day is `r mean_spd_filtered` and the median steps per day is `r median_spd_filtered`. These are very close to the previous values, which indicate that the missing data was not significant, but it is of note that the center bulge is higher than the previous histogram.
+
+Lastly, let's see how the data changes between weekends and weekdays.
+
+```{r echo=TRUE}
+activity_filled$WeekEnd=factor(weekdays(activity_filled$date) %in% c('Saturday','Sunday'),labels=c('weekday','weekend'))
+par(mfrow=c(2,1))
+weekday_spi=with(activity_filled,sapply(split(steps[WeekEnd=='weekday'],interval[WeekEnd=='weekday']),mean))
+weekend_spi=with(activity_filled,sapply(split(steps[WeekEnd=='weekend'],interval[WeekEnd=='weekend']),mean))
+plot(weekday_spi,main='weekday',xlab='Steps Per Interval',type='l')
+plot(weekend_spi,main='weekend',xlab='Steps Per Interval',type='l')
+```
+
+As can be seen, there is significant differences between weekdays and weekends, especially in the intervals between 120-250.
